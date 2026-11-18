@@ -48,6 +48,34 @@ describe('AttachmentsController authorization', () => {
     },
   );
 
+  it('unlinkDocument unlinks (not links) the document from the model', async () => {
+    const attachmentsApplication = {
+      link: jest.fn(),
+      unlink: jest.fn().mockResolvedValue(undefined),
+    };
+    const controller = new AttachmentsController(
+      attachmentsApplication as any,
+      null as any,
+      null as any,
+    );
+
+    const response = await controller.unlinkDocument(
+      { modelRef: 'SaleInvoice', modelId: 10 } as any,
+      'key-1',
+    );
+
+    expect(attachmentsApplication.unlink).toHaveBeenCalledWith(
+      'key-1',
+      'SaleInvoice',
+      10,
+    );
+    expect(attachmentsApplication.link).not.toHaveBeenCalled();
+    expect(response).toEqual({
+      status: 200,
+      message: 'The document has been unlinked successfully.',
+    });
+  });
+
   it('grants all attachment operations to a manage-all (admin) ability', () => {
     const admin = new Ability([{ action: 'manage', subject: 'all' }] as any);
     for (const [method] of cases) {

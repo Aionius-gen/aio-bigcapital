@@ -1,6 +1,8 @@
 import * as bluebird from 'bluebird';
 import { difference } from 'lodash';
 import {
+  isDocumentNotFoundError,
+  validateDocumentExists,
   validateLinkModelEntryExists,
   validateLinkModelExists,
 } from './_utils';
@@ -50,6 +52,7 @@ export class UnlinkAttachment {
     const document = await this.documentModel()
       .query(trx)
       .findOne('key', filekey);
+    validateDocumentExists(document);
 
     // Delete the document link.
     await this.documentLinkModel()
@@ -73,11 +76,15 @@ export class UnlinkAttachment {
     modelId: number,
     trx?: Knex.Transaction,
   ): Promise<void> {
-    await bluebird.each(filekeys, (fieldKey: string) => {
+    await bluebird.each(filekeys, async (fieldKey: string) => {
       try {
-        this.unlink(fieldKey, modelRef, modelId, trx);
-      } catch {
-        // Ignore catching exceptions on bulk action.
+        await this.unlink(fieldKey, modelRef, modelId, trx);
+      } catch (error) {
+        // Skip documents that no longer exist; anything else must roll back
+        // the caller's transaction.
+        if (!isDocumentNotFoundError(error)) {
+          throw error;
+        }
       }
     });
   }
